@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "souhaits": {
+      ".read": true,
+      "$personne": {
+        ".write": true,
+        ".validate": "newData.hasChildren(['type']) && newData.child('type').isString() && newData.child('type').val().matches(/^(douceur|deco|faitmain|surprise|autre)$/) && (!newData.child('precision').exists() || (newData.child('precision').isString() && newData.child('precision').val().length <= 140))",
+        "type": { ".validate": true },
+        "precision": { ".validate": true },
+        "$autre": { ".validate": false }
+      }
+    }
+  }
+}
