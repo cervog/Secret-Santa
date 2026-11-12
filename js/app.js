@@ -15,7 +15,7 @@
     3: "Petits-enfants",
     4: "Arrière-petits-enfants"
   };
-  const CLE_ORGA = "secretSanta.orga.v2";
+  const CLE_ORGA = "secretSanta.orga.v3";
   const CLE_MOI = "secretSanta.monSouhait.v1";
 
   const app = document.getElementById("app");
@@ -72,25 +72,6 @@
     }
   }
 
-  // ---------- liens personnels ----------
-  // Le lien contient (brouillé) le prénom de la personne et celui à qui elle offre.
-  // Le brouillage évite de lire la réponse dans l'adresse par mégarde.
-  const MASQUE = "Joyeux-Noel-Secret-Santa";
-  function brouiller(obj) {
-    const octets = new TextEncoder().encode(JSON.stringify(obj));
-    const out = octets.map((b, i) => b ^ (MASQUE.charCodeAt(i % MASQUE.length) + i * 7) & 255);
-    let bin = ""; out.forEach((b) => (bin += String.fromCharCode(b)));
-    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-  function debrouiller(code) {
-    try {
-      const bin = atob(code.replace(/-/g, "+").replace(/_/g, "/"));
-      const octets = Uint8Array.from(bin, (c) => c.charCodeAt(0))
-        .map((b, i) => b ^ (MASQUE.charCodeAt(i % MASQUE.length) + i * 7) & 255);
-      const obj = JSON.parse(new TextDecoder().decode(octets));
-      return obj && obj.v === 1 && obj.g && obj.r ? obj : null;
-    } catch { return null; }
-  }
   // ---------- données publiées ----------
   async function chargerPublie() {
     if (publie) return publie;
@@ -217,9 +198,8 @@
     const moi = parId[id];
     if (!moi || identiteConfirmee() !== id) { location.hash = "#/"; return; }
 
-    const code = d.tirage && d.tirage.codes && d.tirage.codes[id];
-    const t = code ? debrouiller(code) : null;
-    const receveur = t && t.g === id ? parId[t.r] : null;
+    const attributions = (d.tirage && d.tirage.attributions) || {};
+    const receveur = parId[attributions[id]] || null;
     const souhait = receveur ? texteSouhait(d.souhaits && d.souhaits[receveur.id]) : null;
     const cleVu = "secretSanta.vu." + (d.tirage && d.tirage.id) + "." + id;
     const dejaVu = lire(cleVu);
@@ -382,7 +362,7 @@
       regles: Object.assign({}, Tirage.REGLES_PAR_DEFAUT, copie.regles || {}),
       participants: copie.participants || [],
       souhaits: copie.souhaits || {},
-      tirage: copie.tirage && copie.tirage.codes ? copie.tirage : null
+      tirage: copie.tirage && copie.tirage.attributions ? copie.tirage : null
     };
   }
   function versPublie(o) {
@@ -391,7 +371,7 @@
       organisateur: o.organisateur, regles: o.regles,
       participants: o.participants, souhaits: o.souhaits
     };
-    // Le tirage est publié brouillé : chacun le retrouve en choisissant son prénom.
+    // Le tirage est publié : chacun le retrouve en choisissant son prénom.
     if (o.tirage) out.tirage = o.tirage;
     return out;
   }
@@ -531,7 +511,7 @@
 
         <section class="carte">
           <h2>6. Publier sur le site</h2>
-          <p class="petit">La famille, le tirage (brouillé) et les souhaits sont lus par tout le monde depuis le fichier <code>data/famille.json</code> du dépôt GitHub. Après chaque changement (tirage, nouveaux souhaits…) :</p>
+          <p class="petit">La famille, le tirage et les souhaits sont lus par tout le monde depuis le fichier <code>data/famille.json</code> du dépôt GitHub. Après chaque changement (tirage, nouveaux souhaits…) :</p>
           <ol class="etapes petit">
             <li>Téléchargez le fichier ci-dessous.</li>
             <li>Sur GitHub, ouvrez le dossier <code>data</code> → <b>Add file › Upload files</b> → déposez <code>famille.json</code> → <b>Commit changes</b>.</li>
@@ -650,7 +630,7 @@
           const lu = JSON.parse(await f.text());
           if (!Array.isArray(lu.participants)) throw new Error();
           Object.keys(o).forEach((k) => delete o[k]);
-          Object.assign(o, depuisPublie(lu), lu.tirage && lu.tirage.codes ? { tirage: lu.tirage } : {});
+          Object.assign(o, depuisPublie(lu), lu.tirage && lu.tirage.attributions ? { tirage: lu.tirage } : {});
           sauver(); rendu();
         } catch { alert("Ce fichier n'est pas une sauvegarde valide."); }
       };
@@ -676,11 +656,7 @@
       const res = Tirage.tirer(o.participants, o.regles);
       if (!res.ok) { err.innerHTML = `<p class="alerte">${esc(res.erreur)}</p>`; return; }
       const id = Date.now().toString(36);
-      const codes = {};
-      for (const [g, r] of Object.entries(res.attributions)) {
-        codes[g] = brouiller({ v: 1, t: id, g, r });
-      }
-      o.tirage = { id, fait: new Date().toISOString(), codes, stats: res.stats, empreinte: empreinte(o.participants) };
+      o.tirage = { id, fait: new Date().toISOString(), attributions: res.attributions, stats: res.stats, empreinte: empreinte(o.participants) };
       sauver(); rendu();
       confettis();
     }

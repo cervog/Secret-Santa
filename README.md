@@ -41,11 +41,11 @@ index.html               page unique
 css/style.css            styles
 js/tirage.js             algorithme du tirage (testable seul)
 js/app.js                accueil, page personnelle, espace organisateur
-data/famille.json        famille, règles, tirage (brouillé) et souhaits
+data/famille.json        famille, règles, tirage et souhaits
 scripts/tester-tirage.js tests : node scripts/tester-tirage.js
 ```
 
 - GitHub Pages ne sert que des fichiers statiques : il n'y a pas de base de données.
-  - Le **tirage** et les **souhaits** sont publiés dans `data/famille.json` par l'organisateur. Le tirage y est brouillé pour qu'on ne lise pas la réponse en ouvrant le fichier.
-- C'est un jeu en famille, on se fait confiance 😉 : rien n'empêche quelqu'un de choisir le prénom d'un autre (seule la confirmation l'en dissuade), ni un petit malin de décoder le fichier.
+  - Le **tirage** et les **souhaits** sont publiés dans `data/famille.json` par l'organisateur.
+- C'est un jeu en famille, on se fait confiance 😉 : rien n'empêche quelqu'un de choisir le prénom d'un autre (seule la confirmation l'en dissuade) ou d'ouvrir le fichier du dépôt.
 - Évolution possible : brancher une base gratuite (Firebase, Supabase…) pour que les souhaits s'enregistrent directement, sans passer par l'organisateur.
