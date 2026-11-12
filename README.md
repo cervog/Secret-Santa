@@ -10,7 +10,7 @@ Petite application web (sans serveur, sans inscription) pour organiser le Secret
   - **mélange les générations** autant que possible ;
   - évite les échanges réciproques (A offre à B et B offre à A).
   Le tirage reste aléatoire : on tire plusieurs fois au hasard, on améliore chaque tirage, et on garde au hasard l'un des meilleurs.
-- **Chacun voit à qui il offre** grâce à son **lien personnel** : il touche le paquet cadeau 🎁 et découvre le prénom… et le souhait de la personne.
+- **Chacun voit à qui il offre** : en arrivant, on choisit son prénom dans un menu déroulant, un petit écran de chargement s'affiche, puis « Es-tu sûr(e) d'être … ? ». Une fois confirmé, on arrive dans son espace perso, on touche le paquet cadeau 🎁 et on découvre le prénom… et le souhait de la personne.
 - **Chacun indique son souhait** pour son Santa : 🍫 douceur à manger, 🕯️ petite déco, 🧶 fait main, 🎉 surprise surprise, ✏️ autre (à préciser).
 - Personne, pas même l'organisateur, ne voit le résultat complet du tirage dans l'application.
 - Fonctionne sur téléphone, mode sombre automatique.
@@ -20,7 +20,7 @@ Petite application web (sans serveur, sans inscription) pour organiser le Secret
 1. Sur GitHub : **Settings → Pages → Build and deployment → Deploy from a branch**, branche `main`, dossier `/ (root)`.
 2. L'application est alors disponible à l'adresse : `https://cervog.github.io/Secret-Santa/`.
 
-> ⚠️ Ce dépôt est **privé** : GitHub Pages n'est disponible sur un dépôt privé qu'avec un abonnement payant (GitHub Pro). Sinon, rendez le dépôt public (Settings → General → Danger Zone → Change visibility). Le résultat du tirage n'est jamais stocké dans le dépôt, seuls la famille et les souhaits y figurent.
+> ⚠️ GitHub Pages n'est disponible sur un dépôt privé qu'avec un abonnement payant (GitHub Pro) : sinon, le dépôt doit être public (Settings → General → Danger Zone → Change visibility).
 
 ## Mode d'emploi pour l'organisateur
 
@@ -28,11 +28,11 @@ Petite application web (sans serveur, sans inscription) pour organiser le Secret
 2. **L'événement** : titre, date, budget, prénom et téléphone de l'organisateur.
 3. **La famille** : pour chaque personne, son prénom, sa *branche* (le nom de l'enfant de la grand-mère auquel elle se rattache ; la grand-mère est seule dans sa branche « Mamie »), sa génération et son conjoint.
 4. **Les règles** : ajuster si besoin (les réglages par défaut conviennent dans la plupart des cas).
-5. **Lancer le tirage** puis envoyer à chacun **son** lien (bouton WhatsApp ou « Copier le lien »).
+5. **Lancer le tirage**, puis le **publier** (étape 7) : chacun pourra alors le découvrir en choisissant son prénom.
 6. Chacun choisit son souhait sur sa page et l'envoie à l'organisateur en un clic (WhatsApp, SMS ou copier-coller). L'organisateur colle les messages reçus dans **5. Les souhaits**.
-7. **Publier** : télécharger `famille.json` et le déposer dans le dossier `data/` sur GitHub (*Add file → Upload files → Commit changes*). Les pages personnelles affichent alors les souhaits à jour.
+7. **Publier** (après le tirage et à chaque nouveau souhait) : télécharger `famille.json` et le déposer dans le dossier `data/` sur GitHub (*Add file → Upload files → Commit changes*). Une à deux minutes plus tard, le site est à jour.
 
-> Les données de l'organisateur (famille, tirage) sont enregistrées dans le navigateur de son appareil. Pour changer d'appareil ou par sécurité : *Sauvegarde, autre appareil… → Télécharger une sauvegarde complète* (à garder pour soi : elle contient les liens du tirage).
+> Les données de l'organisateur (famille, tirage) sont enregistrées dans le navigateur de son appareil. Pour changer d'appareil ou par sécurité : *Sauvegarde, autre appareil… → Télécharger une sauvegarde complète* .
 
 ## Comment c'est fait
 
@@ -41,12 +41,11 @@ index.html               page unique
 css/style.css            styles
 js/tirage.js             algorithme du tirage (testable seul)
 js/app.js                accueil, page personnelle, espace organisateur
-data/famille.json        famille, règles et souhaits publiés (pas le tirage)
+data/famille.json        famille, règles, tirage (brouillé) et souhaits
 scripts/tester-tirage.js tests : node scripts/tester-tirage.js
 ```
 
 - GitHub Pages ne sert que des fichiers statiques : il n'y a pas de base de données.
-  - Le **résultat du tirage** voyage dans les liens personnels (brouillé, pour qu'on ne lise pas la réponse dans l'adresse par mégarde). Il n'est jamais publié dans le dépôt.
-  - Les **souhaits** sont publiés dans `data/famille.json` par l'organisateur.
-- Le brouillage protège des regards indiscrets, pas d'un petit malin qui voudrait décoder le lien d'un autre : c'est un jeu en famille, on se fait confiance 😉.
+  - Le **tirage** et les **souhaits** sont publiés dans `data/famille.json` par l'organisateur. Le tirage y est brouillé pour qu'on ne lise pas la réponse en ouvrant le fichier.
+- C'est un jeu en famille, on se fait confiance 😉 : rien n'empêche quelqu'un de choisir le prénom d'un autre (seule la confirmation l'en dissuade), ni un petit malin de décoder le fichier.
 - Évolution possible : brancher une base gratuite (Firebase, Supabase…) pour que les souhaits s'enregistrent directement, sans passer par l'organisateur.

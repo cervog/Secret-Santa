@@ -15,7 +15,7 @@
     3: "Petits-enfants",
     4: "Arrière-petits-enfants"
   };
-  const CLE_ORGA = "secretSanta.orga.v1";
+  const CLE_ORGA = "secretSanta.orga.v2";
   const CLE_MOI = "secretSanta.monSouhait.v1";
 
   const app = document.getElementById("app");
@@ -91,10 +91,6 @@
       return obj && obj.v === 1 && obj.g && obj.r ? obj : null;
     } catch { return null; }
   }
-  function urlPersonnelle(code) {
-    return location.href.split("#")[0] + "#/l/" + code;
-  }
-
   // ---------- données publiées ----------
   async function chargerPublie() {
     if (publie) return publie;
@@ -105,21 +101,44 @@
     return publie;
   }
 
+  // ---------- identité choisie (pour la durée de la visite) ----------
+  const CLE_IDENTITE = "secretSanta.identite";
+  let identite = null;
+  function identiteConfirmee() {
+    if (identite) return identite;
+    try { return sessionStorage.getItem(CLE_IDENTITE); } catch { return null; }
+  }
+  function confirmerIdentite(id) {
+    identite = id;
+    try { sessionStorage.setItem(CLE_IDENTITE, id); } catch { /* indisponible */ }
+    ecrire("secretSanta.dernierChoix", id);
+  }
+  function oublierIdentite() {
+    identite = null;
+    try { sessionStorage.removeItem(CLE_IDENTITE); } catch { /* indisponible */ }
+  }
+
   // ---------- routeur ----------
   async function route() {
     const h = location.hash || "#/";
     window.scrollTo(0, 0);
-    if (h.startsWith("#/l/")) return pagePersonnelle(h.slice(4));
+    if (h.startsWith("#/moi/")) return pagePersonnelle(decodeURIComponent(h.slice(6)));
     if (h.startsWith("#/orga")) return pageOrga();
     return pageAccueil();
   }
   window.addEventListener("hashchange", route);
 
+  const GROUPES = { 1: "Grands-parents", 2: "Enfants & conjoints", 3: "Petits-enfants & conjoints", 4: "Arrière-petits-enfants" };
+
   // =====================================================================
-  // ACCUEIL
+  // ACCUEIL : « Qui es-tu ? »
   // =====================================================================
   async function pageAccueil() {
     const d = await chargerPublie();
+    const participants = d.participants || [];
+    const dernier = lire("secretSanta.dernierChoix");
+    const gens = [...new Set(participants.map((p) => Number(p.generation)))].sort();
+
     app.innerHTML = `
       <header class="entete">
         <div class="grand-emoji">🎅</div>
@@ -127,83 +146,128 @@
         ${d.date ? `<p class="sous-titre">${esc(dateFr(d.date))}</p>` : ""}
       </header>
       <section class="carte">
-        <h2>Comment ça marche ?</h2>
-        <ol class="etapes">
-          <li><b>L'organisateur</b> fait le tirage au sort : chacun offre <b>un seul cadeau</b>, de préférence à quelqu'un d'une autre famille et d'une autre génération.</li>
-          <li>Tu reçois <b>ton lien personnel</b> (par message). Ouvre-le pour découvrir à qui tu fais un cadeau… et son souhait !</li>
-          <li>Sur ta page, indique toi aussi <b>ce qui te ferait plaisir</b> : douceur, déco, fait main, surprise…</li>
-        </ol>
-        <p class="note">🤫 Ne partage pas ton lien : c'est lui qui contient ton secret.</p>
+        <form id="form-qui">
+          <label class="champ">
+            <span class="question">Qui es-tu ?</span>
+            <select id="qui" required>
+              <option value="">— Choisis ton prénom —</option>
+              ${gens.map((g) => `<optgroup label="${esc(GROUPES[g] || "Génération " + g)}">
+                ${participants.filter((p) => Number(p.generation) === g).map((p) =>
+                  `<option value="${esc(p.id)}" ${p.id === dernier ? "selected" : ""}>${esc(p.nom)}</option>`).join("")}
+              </optgroup>`).join("")}
+            </select>
+          </label>
+          <button class="bouton large" id="valider-qui" ${participants.some((p) => p.id === dernier) ? "" : "disabled"}>C'est moi ! 🎄</button>
+        </form>
       </section>
       <section class="carte">
-        <h2>Tu as perdu ton lien ?</h2>
-        <p>Demande-le à ${d.organisateur?.nom ? `<b>${esc(d.organisateur.nom)}</b>` : "l'organisateur"} : il peut te le renvoyer sans connaître ton secret.</p>
+        <h2>Comment ça marche ?</h2>
+        <ol class="etapes">
+          <li>Chacun offre <b>un seul cadeau</b>, tiré au sort, de préférence à quelqu'un d'une autre famille et d'une autre génération.</li>
+          <li>Choisis ton prénom pour découvrir à qui tu fais un cadeau… et ce qui lui ferait plaisir.</li>
+          <li>Indique toi aussi <b>ton souhait</b> : douceur, déco, fait main, surprise…</li>
+        </ol>
+        <p class="note">🤫 On compte sur toi : ne regarde que ton prénom !</p>
       </section>
       <p class="centre"><a class="lien-discret" href="#/orga">🔧 Espace organisateur</a></p>`;
+
+    const sel = document.getElementById("qui");
+    const btn = document.getElementById("valider-qui");
+    sel.onchange = () => (btn.disabled = !sel.value);
+    document.getElementById("form-qui").onsubmit = (e) => {
+      e.preventDefault();
+      const p = participants.find((x) => x.id === sel.value);
+      if (p) ecranVerification(p);
+    };
+  }
+
+  function ecranVerification(p) {
+    app.innerHTML = `
+      <section class="carte centre ecran-chargement">
+        <div class="lutin" aria-hidden="true">🎁</div>
+        <p class="chargement-texte">Les lutins cherchent ton espace…</p>
+        <div class="barre"><span></span></div>
+      </section>`;
+    setTimeout(() => {
+      app.innerHTML = `
+        <section class="carte centre confirmation">
+          <div class="grand-emoji">🤔</div>
+          <h2>Es-tu sûr(e) d'être<br><span class="nom-confirme">${esc(p.nom)}</span> ?</h2>
+          <p class="petit">Le Père Noël te fait confiance 😉</p>
+          <div class="boutons centre-boutons">
+            <button class="bouton" id="oui">Oui, c'est moi !</button>
+            <button class="bouton secondaire" id="non">Non, revenir</button>
+          </div>
+        </section>`;
+      document.getElementById("oui").onclick = () => {
+        confirmerIdentite(p.id);
+        location.hash = "#/moi/" + encodeURIComponent(p.id);
+      };
+      document.getElementById("non").onclick = () => pageAccueil();
+      document.getElementById("oui").focus();
+    }, 1600);
   }
 
   // =====================================================================
-  // PAGE PERSONNELLE
+  // ESPACE PERSO
   // =====================================================================
-  async function pagePersonnelle(code) {
-    const t = debrouiller(code);
-    if (!t) {
-      app.innerHTML = `
-        <section class="carte centre">
-          <div class="grand-emoji">😕</div>
-          <h2>Ce lien ne fonctionne pas</h2>
-          <p>Il a peut-être été coupé en le copiant. Redemande ton lien à l'organisateur.</p>
-          <p><a class="bouton" href="#/">Retour à l'accueil</a></p>
-        </section>`;
-      return;
-    }
+  async function pagePersonnelle(id) {
     const d = await chargerPublie();
-    const tirageActif = d.tirage && d.tirage !== t.t;
-    const souhaitLive = d.souhaits && d.souhaits[t.r];
-    const souhait = texteSouhait(souhaitLive || t.s);
-    const dejaVu = lire("secretSanta.vu." + t.t + "." + t.g);
+    const parId = Object.fromEntries((d.participants || []).map((p) => [p.id, p]));
+    const moi = parId[id];
+    if (!moi || identiteConfirmee() !== id) { location.hash = "#/"; return; }
+
+    const code = d.tirage && d.tirage.codes && d.tirage.codes[id];
+    const t = code ? debrouiller(code) : null;
+    const receveur = t && t.g === id ? parId[t.r] : null;
+    const souhait = receveur ? texteSouhait(d.souhaits && d.souhaits[receveur.id]) : null;
+    const cleVu = "secretSanta.vu." + (d.tirage && d.tirage.id) + "." + id;
+    const dejaVu = lire(cleVu);
 
     app.innerHTML = `
       <header class="entete">
         <div class="grand-emoji">🎄</div>
-        <h1>Bonjour ${esc(t.gn)} !</h1>
-        <p class="sous-titre">${esc(t.ti || d.titre || "Secret Santa en famille")}</p>
-        ${(t.dt || d.date) ? `<p class="petit">${esc(dateFr(t.dt || d.date))}</p>` : ""}
+        <h1>Bonjour ${esc(moi.nom)} !</h1>
+        <p class="sous-titre">${esc(d.titre || "Secret Santa en famille")}</p>
+        ${d.date ? `<p class="petit">${esc(dateFr(d.date))}</p>` : ""}
       </header>
-
-      ${tirageActif ? `<div class="alerte">⚠️ Un nouveau tirage a peut-être été fait depuis l'envoi de ce lien. En cas de doute, redemande ton lien à l'organisateur.</div>` : ""}
 
       <section class="carte centre">
         <h2>Tu es le Secret Santa de…</h2>
+        ${receveur ? `
         <div class="cadeau ${dejaVu ? "ouvert" : ""}" id="cadeau">
           <button class="cadeau-ferme" id="ouvrir" aria-label="Découvrir à qui j'offre un cadeau">
             <span class="paquet">🎁</span>
             <span>Touche le cadeau pour découvrir</span>
           </button>
           <div class="cadeau-ouvert">
-            <div class="receveur">${esc(t.rn)}</div>
+            <div class="receveur">${esc(receveur.nom)}</div>
             <div class="souhait-receveur">
               ${souhait
                 ? `<p class="petit">Son souhait :</p>
                    <p class="pastille">${souhait.emoji} ${esc(souhait.label)}</p>
                    ${souhait.precision ? `<p class="precision">« ${esc(souhait.precision)} »</p>` : ""}`
-                : `<p class="petit">${esc(t.rn)} n'a pas encore donné de souhait. Reviens voir plus tard !</p>`}
+                : `<p class="petit">${esc(receveur.nom)} n'a pas encore donné de souhait. Reviens voir plus tard !</p>`}
             </div>
-            ${t.b || d.budget ? `<p class="petit">Budget conseillé : <b>${esc(t.b || d.budget)}</b></p>` : ""}
+            ${d.budget ? `<p class="petit">Budget conseillé : <b>${esc(d.budget)}</b></p>` : ""}
             <p class="note">🤫 Chut, c'est un secret !</p>
           </div>
-        </div>
+        </div>` : `
+        <div class="grand-emoji">⏳</div>
+        <p>Le tirage au sort n'a pas encore eu lieu.<br>Reviens dans quelques jours !</p>`}
       </section>
 
       <section class="carte" id="mon-souhait"></section>
-      <p class="centre"><a class="lien-discret" href="#/">Comment ça marche ?</a></p>`;
+      <p class="centre"><button class="lien-discret bouton-lien" id="changer">Ce n'est pas moi / changer de prénom</button></p>`;
 
-    document.getElementById("ouvrir").onclick = () => {
+    const ouvrir = document.getElementById("ouvrir");
+    if (ouvrir) ouvrir.onclick = () => {
       document.getElementById("cadeau").classList.add("ouvert");
-      ecrire("secretSanta.vu." + t.t + "." + t.g, true);
+      ecrire(cleVu, true);
       confettis();
     };
-    blocMonSouhait(t, d);
+    document.getElementById("changer").onclick = () => { oublierIdentite(); location.hash = "#/"; };
+    blocMonSouhait({ g: moi.id, gn: moi.nom }, d);
   }
 
   function blocMonSouhait(t, d) {
@@ -318,7 +382,7 @@
       regles: Object.assign({}, Tirage.REGLES_PAR_DEFAUT, copie.regles || {}),
       participants: copie.participants || [],
       souhaits: copie.souhaits || {},
-      tirage: null
+      tirage: copie.tirage && copie.tirage.codes ? copie.tirage : null
     };
   }
   function versPublie(o) {
@@ -327,7 +391,8 @@
       organisateur: o.organisateur, regles: o.regles,
       participants: o.participants, souhaits: o.souhaits
     };
-    if (o.tirage) out.tirage = o.tirage.id; // identifiant seulement : rien de secret
+    // Le tirage est publié brouillé : chacun le retrouve en choisissant son prénom.
+    if (o.tirage) out.tirage = o.tirage;
     return out;
   }
   function empreinte(participants) {
@@ -336,6 +401,7 @@
 
   async function pageOrga() {
     const o = await chargerOrga();
+    let enLigne = await chargerPublie();
     const sauver = () => ecrire(CLE_ORGA, o);
     const branches = () => [...new Set(o.participants.map((p) => p.branche).filter(Boolean))];
 
@@ -343,6 +409,8 @@
       const parId = Object.fromEntries(o.participants.map((p) => [p.id, p]));
       const perime = o.tirage && o.tirage.empreinte !== empreinte(o.participants);
       const nbSouhaits = o.participants.filter((p) => o.souhaits[p.id]).length;
+      const idEnLigne = enLigne.tirage && enLigne.tirage.id;
+      const tiragePublie = o.tirage && idEnLigne === o.tirage.id;
 
       app.innerHTML = `
         <header class="entete">
@@ -420,25 +488,18 @@
         <section class="carte">
           <h2>4. Le tirage au sort</h2>
           ${o.tirage ? `
-            ${perime ? `<div class="alerte">⚠️ La famille a été modifiée depuis ce tirage. Refaites un tirage et renvoyez les nouveaux liens.</div>` : ""}
+            ${perime ? `<div class="alerte">⚠️ La famille a été modifiée depuis ce tirage. Refaites un tirage puis publiez-le.</div>` : ""}
             <p class="succes">🎲 Tirage fait le ${esc(new Date(o.tirage.fait).toLocaleString("fr-FR"))}.</p>
             <p class="petit">${statsHtml(o.tirage.stats)}</p>
-            <p class="note">🤫 Cette page n'affiche jamais qui offre à qui. Envoyez à chacun <b>son</b> lien. Si vous participez, n'ouvrez que le vôtre !</p>
-            <ul class="liens">
-              ${o.participants.filter((p) => o.tirage.codes[p.id]).map((p) => `
-                <li>
-                  <span class="nom">${esc(p.nom)}</span>
-                  <span class="boutons">
-                    <a class="bouton petit whatsapp" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(messageLien(p, o))}">WhatsApp</a>
-                    <button class="bouton petit secondaire" data-copier="${esc(p.id)}">Copier le lien</button>
-                  </span>
-                </li>`).join("")}
-            </ul>
-            <button class="bouton secondaire" id="tout-copier">Copier tous les messages</button>
+            ${tiragePublie
+              ? `<p class="succes">✅ Ce tirage est en ligne : chacun peut le découvrir en choisissant son prénom sur l'accueil.</p>`
+              : `<div class="alerte">📤 Ce tirage n'est <b>pas encore en ligne</b>. Publiez le fichier (étape 6) pour que chacun puisse le découvrir.</div>`}
+            <p class="note">🤫 Cette page n'affiche jamais qui offre à qui. Si vous participez, ne choisissez que votre prénom !</p>
             <button class="bouton danger" id="retirer">Refaire le tirage</button>
           ` : `
             <p class="petit">Vérifiez la famille et les règles, puis lancez le tirage. Personne (pas même vous) ne verra le résultat ici.</p>
             <button class="bouton large" id="tirer">🎲 Lancer le tirage au sort</button>
+            ${idEnLigne ? `<p class="note">ℹ️ Un tirage est déjà en ligne sur le site, mais il n'est pas sur cet appareil. Utilisez « Repartir du fichier publié » (étape 6) pour le récupérer.</p>` : ""}
           `}
           <div id="erreur-tirage"></div>
         </section>
@@ -470,16 +531,16 @@
 
         <section class="carte">
           <h2>6. Publier sur le site</h2>
-          <p class="petit">Les souhaits et la famille sont lus par tout le monde depuis le fichier <code>data/famille.json</code> du dépôt GitHub. Après chaque changement (nouveaux souhaits…) :</p>
+          <p class="petit">La famille, le tirage (brouillé) et les souhaits sont lus par tout le monde depuis le fichier <code>data/famille.json</code> du dépôt GitHub. Après chaque changement (tirage, nouveaux souhaits…) :</p>
           <ol class="etapes petit">
-            <li>Téléchargez le fichier ci-dessous (il ne contient <b>pas</b> le résultat du tirage).</li>
+            <li>Téléchargez le fichier ci-dessous.</li>
             <li>Sur GitHub, ouvrez le dossier <code>data</code> → <b>Add file › Upload files</b> → déposez <code>famille.json</code> → <b>Commit changes</b>.</li>
             <li>Une à deux minutes plus tard, le site est à jour.</li>
           </ol>
           <button class="bouton large" id="exporter">⬇️ Télécharger famille.json</button>
           <details class="avance">
             <summary>Sauvegarde, autre appareil…</summary>
-            <p class="petit">La sauvegarde complète contient aussi les liens du tirage : gardez-la pour vous (ne la publiez pas).</p>
+            <p class="petit">Pour reprendre l'organisation sur un autre appareil, ou revenir à la version en ligne.</p>
             <div class="boutons">
               <button class="bouton secondaire" id="sauvegarde">Télécharger une sauvegarde complète</button>
               <label class="bouton secondaire">Restaurer une sauvegarde<input type="file" id="restaurer" accept="application/json" hidden></label>
@@ -498,9 +559,6 @@
       return `Qualité du mélange : ${pl(s.memeBranche, "cadeau", "cadeaux")} dans la même branche, ${pl(s.memeGeneration, "cadeau", "cadeaux")} dans la même génération, ${pl(s.reciproques, "échange réciproque", "échanges réciproques")}.`;
     }
 
-    function messageLien(p, o) {
-      return `🎅 Coucou ${p.nom} ! Voici ton lien personnel pour le Secret Santa « ${o.titre} » : découvre à qui tu offres un cadeau et indique ton souhait.\n👉 ${urlPersonnelle(o.tirage.codes[p.id])}\n🤫 Garde-le pour toi !`;
-    }
 
     function brancher() {
       // événement
@@ -555,13 +613,9 @@
       if (bTirer) bTirer.onclick = faireTirage;
       const bRetirer = document.getElementById("retirer");
       if (bRetirer) bRetirer.onclick = () => {
-        if (!confirm("Refaire le tirage ? Les liens déjà envoyés ne seront plus valables : il faudra renvoyer les nouveaux à tout le monde.")) return;
+        if (!confirm("Refaire le tirage ? Il remplacera l\'ancien dès que vous l\'aurez publié : prévenez ceux qui ont déjà regardé.")) return;
         faireTirage();
       };
-      app.querySelectorAll("[data-copier]").forEach((b) => (b.onclick = () =>
-        copier(urlPersonnelle(o.tirage.codes[b.dataset.copier]), b)));
-      const bTout = document.getElementById("tout-copier");
-      if (bTout) bTout.onclick = () => copier(o.participants.filter((p) => o.tirage.codes[p.id]).map((p) => messageLien(p, o)).join("\n\n"), bTout);
       // souhaits
       app.querySelectorAll("tr[data-id] [data-s]").forEach((inp) => (inp.onchange = () => {
         const id = inp.closest("tr").dataset.id;
@@ -601,9 +655,10 @@
         } catch { alert("Ce fichier n'est pas une sauvegarde valide."); }
       };
       document.getElementById("reinit").onclick = async () => {
-        if (!confirm("Effacer les données de cet appareil (y compris les liens du tirage) et recharger le fichier publié ?")) return;
+        if (!confirm("Effacer les données de cet appareil et recharger le fichier publié ?")) return;
         publie = null;
         const d = await chargerPublie();
+        enLigne = d;
         const neuf = depuisPublie(d);
         Object.keys(o).forEach((k) => delete o[k]);
         Object.assign(o, neuf);
@@ -621,15 +676,9 @@
       const res = Tirage.tirer(o.participants, o.regles);
       if (!res.ok) { err.innerHTML = `<p class="alerte">${esc(res.erreur)}</p>`; return; }
       const id = Date.now().toString(36);
-      const parId = Object.fromEntries(o.participants.map((p) => [p.id, p]));
       const codes = {};
       for (const [g, r] of Object.entries(res.attributions)) {
-        codes[g] = brouiller({
-          v: 1, t: id, g, gn: parId[g].nom, r, rn: parId[r].nom,
-          s: o.souhaits[r] || null,
-          ti: o.titre, dt: o.date, b: o.budget,
-          on: o.organisateur.nom, tel: o.organisateur.telephone
-        });
+        codes[g] = brouiller({ v: 1, t: id, g, r });
       }
       o.tirage = { id, fait: new Date().toISOString(), codes, stats: res.stats, empreinte: empreinte(o.participants) };
       sauver(); rendu();
