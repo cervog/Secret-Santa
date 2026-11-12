@@ -1,0 +1,31 @@
+{
+  "titre": "Noël 2026 chez Mamie",
+  "date": "2026-12-25",
+  "budget": "20 €",
+  "organisateur": { "nom": "Catherine", "telephone": "" },
+  "regles": {
+    "conjoint": true,
+    "branche": "preference",
+    "generation": "preference",
+    "reciproque": "preference"
+  },
+  "participants": [
+    { "id": "simone",    "nom": "Mamie Simone", "branche": "Mamie",     "generation": 1, "conjoint": null },
+
+    { "id": "catherine", "nom": "Catherine",    "branche": "Catherine", "generation": 2, "conjoint": "marc" },
+    { "id": "marc",      "nom": "Marc",         "branche": "Catherine", "generation": 2, "conjoint": "catherine" },
+    { "id": "lea",       "nom": "Léa",          "branche": "Catherine", "generation": 3, "conjoint": "hugo" },
+    { "id": "hugo",      "nom": "Hugo",         "branche": "Catherine", "generation": 3, "conjoint": "lea" },
+    { "id": "tom",       "nom": "Tom",          "branche": "Catherine", "generation": 3, "conjoint": null },
+
+    { "id": "philippe",  "nom": "Philippe",     "branche": "Philippe",  "generation": 2, "conjoint": "sophie" },
+    { "id": "sophie",    "nom": "Sophie",       "branche": "Philippe",  "generation": 2, "conjoint": "philippe" },
+    { "id": "emma",      "nom": "Emma",         "branche": "Philippe",  "generation": 3, "conjoint": null },
+    { "id": "lucas",     "nom": "Lucas",        "branche": "Philippe",  "generation": 3, "conjoint": "chloe" },
+    { "id": "chloe",     "nom": "Chloé",        "branche": "Philippe",  "generation": 3, "conjoint": "lucas" }
+  ],
+  "souhaits": {
+    "simone": { "type": "douceur", "precision": "" },
+    "emma":   { "type": "autre", "precision": "Un livre de poche, plutôt un polar" }
+  }
+}
