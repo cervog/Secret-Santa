@@ -2,30 +2,113 @@
   "titre": "Noël 2026 chez Marie-France",
   "date": "",
   "budget": "",
-  "organisateur": { "nom": "", "telephone": "" },
+  "baseSouhaits": "",
   "regles": {
+    "boucle": true,
     "conjoint": true,
     "branche": "preference",
     "generation": "preference",
     "reciproque": "preference"
   },
   "participants": [
-    { "id": "marie-france", "nom": "Marie-France", "branche": "Marie-France", "generation": 1, "conjoint": null },
-
-    { "id": "sophie",     "nom": "Sophie",     "branche": "Sophie", "generation": 2, "conjoint": "philippe" },
-    { "id": "philippe",   "nom": "Philippe",   "branche": "Sophie", "generation": 2, "conjoint": "sophie" },
-    { "id": "remi",       "nom": "Rémi",       "branche": "Sophie", "generation": 3, "conjoint": "lucille" },
-    { "id": "lucille",    "nom": "Lucille",    "branche": "Sophie", "generation": 3, "conjoint": "remi" },
-    { "id": "ludovic",    "nom": "Ludovic",    "branche": "Sophie", "generation": 3, "conjoint": null },
-    { "id": "cyril",      "nom": "Cyril",      "branche": "Sophie", "generation": 3, "conjoint": "caroline" },
-    { "id": "caroline",   "nom": "Caroline",   "branche": "Sophie", "generation": 3, "conjoint": "cyril" },
-
-    { "id": "joelle",     "nom": "Joëlle",     "branche": "Joëlle", "generation": 2, "conjoint": "christophe" },
-    { "id": "christophe", "nom": "Christophe", "branche": "Joëlle", "generation": 2, "conjoint": "joelle" },
-    { "id": "hippolyte",  "nom": "Hippolyte",  "branche": "Joëlle", "generation": 3, "conjoint": "therese" },
-    { "id": "therese",    "nom": "Thérèse",    "branche": "Joëlle", "generation": 3, "conjoint": "hippolyte" },
-    { "id": "baptistin",  "nom": "Baptistin",  "branche": "Joëlle", "generation": 3, "conjoint": "anaelle" },
-    { "id": "anaelle",    "nom": "Anaëlle",    "branche": "Joëlle", "generation": 3, "conjoint": "baptistin" }
+    {
+      "id": "marie-france",
+      "nom": "Marie-France",
+      "branche": "Marie-France",
+      "generation": 1,
+      "conjoint": null
+    },
+    {
+      "id": "sophie",
+      "nom": "Sophie",
+      "branche": "Sophie",
+      "generation": 2,
+      "conjoint": "philippe"
+    },
+    {
+      "id": "philippe",
+      "nom": "Philippe",
+      "branche": "Sophie",
+      "generation": 2,
+      "conjoint": "sophie"
+    },
+    {
+      "id": "remi",
+      "nom": "Rémi",
+      "branche": "Sophie",
+      "generation": 3,
+      "conjoint": "lucille"
+    },
+    {
+      "id": "lucille",
+      "nom": "Lucille",
+      "branche": "Sophie",
+      "generation": 3,
+      "conjoint": "remi"
+    },
+    {
+      "id": "ludovic",
+      "nom": "Ludovic",
+      "branche": "Sophie",
+      "generation": 3,
+      "conjoint": null
+    },
+    {
+      "id": "cyril",
+      "nom": "Cyril",
+      "branche": "Sophie",
+      "generation": 3,
+      "conjoint": "caroline"
+    },
+    {
+      "id": "caroline",
+      "nom": "Caroline",
+      "branche": "Sophie",
+      "generation": 3,
+      "conjoint": "cyril"
+    },
+    {
+      "id": "joelle",
+      "nom": "Joëlle",
+      "branche": "Joëlle",
+      "generation": 2,
+      "conjoint": "christophe"
+    },
+    {
+      "id": "christophe",
+      "nom": "Christophe",
+      "branche": "Joëlle",
+      "generation": 2,
+      "conjoint": "joelle"
+    },
+    {
+      "id": "hippolyte",
+      "nom": "Hippolyte",
+      "branche": "Joëlle",
+      "generation": 3,
+      "conjoint": "therese"
+    },
+    {
+      "id": "therese",
+      "nom": "Thérèse",
+      "branche": "Joëlle",
+      "generation": 3,
+      "conjoint": "hippolyte"
+    },
+    {
+      "id": "baptistin",
+      "nom": "Baptistin",
+      "branche": "Joëlle",
+      "generation": 3,
+      "conjoint": "anaelle"
+    },
+    {
+      "id": "anaelle",
+      "nom": "Anaëlle",
+      "branche": "Joëlle",
+      "generation": 3,
+      "conjoint": "baptistin"
+    }
   ],
   "souhaits": {}
 }

@@ -16,6 +16,7 @@ function verifier(attr, regles) {
     if (regles.branche === "stricte") assert.notStrictEqual(parId[a].branche, parId[b].branche);
     if (regles.reciproque === "stricte") assert.notStrictEqual(attr[b], a);
   }
+  if (regles.boucle !== false) assert.strictEqual(Tirage.nombreDeBoucles(attr), 1, "une seule boucle");
 }
 
 const N = 300;
@@ -36,6 +37,12 @@ const strict = { conjoint: true, branche: "stricte", generation: "preference", r
 const r2 = Tirage.tirer(P, strict);
 if (r2.ok) { verifier(r2.attributions, strict); console.log("Règles strictes : OK", r2.stats); }
 else console.log("Règles strictes : impossible →", r2.erreur);
+
+// Sans l'option boucle, l'ancien mode reste disponible
+const libre = Object.assign({}, data.regles, { boucle: false });
+const r3 = Tirage.tirer(P, libre);
+assert.ok(r3.ok); verifier(r3.attributions, libre);
+console.log("Mode libre (plusieurs boucles possibles) : OK");
 
 // Cas impossible : 3 personnes dont un couple
 const imp = Tirage.tirer([

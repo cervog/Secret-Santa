@@ -3,6 +3,8 @@
  *
  * Contraintes STRICTES (jamais violées) :
  *   - on ne s'offre pas de cadeau à soi-même ;
+ *   - (option, activée par défaut) une seule grande boucle : A offre à B, B à C…
+ *     jusqu'au dernier qui offre à A. Le jour J, les cadeaux s'ouvrent à la chaîne ;
  *   - (option) jamais à son conjoint ;
  *   - (option "stricte") jamais à quelqu'un de sa branche familiale ;
  *   - (option) pas d'échange réciproque (A → B et B → A).
@@ -22,6 +24,7 @@
   const POIDS = { branche: 10, generation: 3, reciproque: 4 };
 
   const REGLES_PAR_DEFAUT = {
+    boucle: true,            // une seule chaîne qui boucle sur tout le monde
     conjoint: true,          // jamais à son conjoint
     branche: "preference",   // "stricte" | "preference" | "ignorer"
     generation: "preference",// "preference" | "ignorer"
@@ -111,6 +114,58 @@
     return placer(0) ? attr : null;
   }
 
+  // ----- Mode « une seule boucle » : on cherche un ordre de passage -----
+  const versAttr = (ordre) => new Map(ordre.map((a, i) => [a, ordre[(i + 1) % ordre.length]]));
+
+  function boucleValide(ordre, ctx) {
+    for (let i = 0; i < ordre.length; i++) {
+      if (!ctx.autorise(ordre[i], ordre[(i + 1) % ordre.length])) return false;
+    }
+    return true;
+  }
+
+  /** Ordre aléatoire dont chaque voisin (et le dernier → le premier) est autorisé. */
+  function boucleAleatoire(ids, ctx, rnd, budget) {
+    const reste = melanger(ids.slice(), rnd);
+    const ordre = [reste.pop()];
+    const pris = new Set(ordre);
+    let essais = 0;
+
+    function placer() {
+      if (++essais > budget) return false;
+      if (ordre.length === ids.length) return ctx.autorise(ordre[ordre.length - 1], ordre[0]);
+      const dernier = ordre[ordre.length - 1];
+      const candidats = melanger(ids.filter((b) => !pris.has(b) && ctx.autorise(dernier, b)), rnd);
+      for (const b of candidats) {
+        ordre.push(b); pris.add(b);
+        if (placer()) return true;
+        ordre.pop(); pris.delete(b);
+      }
+      return false;
+    }
+    return placer() ? ordre : null;
+  }
+
+  /** Amélioration en échangeant la place de deux personnes dans la boucle. */
+  function ameliorerBoucle(ordre, ctx, rnd) {
+    let courant = ctx.cout(versAttr(ordre));
+    let progres = true;
+    while (progres && courant > 0) {
+      progres = false;
+      const positions = melanger([...ordre.keys()], rnd);
+      for (let x = 0; x < positions.length && courant > 0; x++) {
+        for (let y = x + 1; y < positions.length; y++) {
+          const i = positions[x], j = positions[y];
+          [ordre[i], ordre[j]] = [ordre[j], ordre[i]];
+          const c = boucleValide(ordre, ctx) ? ctx.cout(versAttr(ordre)) : Infinity;
+          if (c < courant) { courant = c; progres = true; }
+          else [ordre[i], ordre[j]] = [ordre[j], ordre[i]];
+        }
+      }
+    }
+    return courant;
+  }
+
   /** Amélioration par échanges de receveurs entre deux donneurs. */
   function ameliorer(attr, ids, ctx, rnd) {
     let courant = ctx.cout(attr);
@@ -155,10 +210,17 @@
     const ctx = preparer(participants, regles);
     const resultats = [];
     for (let k = 0; k < opts.essais; k++) {
-      const attr = tirageAleatoire(ids, ctx, rnd, 20000);
-      if (!attr) continue;
-      const c = ameliorer(attr, ids, ctx, rnd);
-      resultats.push({ attr, c });
+      if (ctx.r.boucle) {
+        const ordre = boucleAleatoire(ids, ctx, rnd, 20000);
+        if (!ordre) continue;
+        const c = ameliorerBoucle(ordre, ctx, rnd);
+        resultats.push({ attr: versAttr(ordre), c });
+      } else {
+        const attr = tirageAleatoire(ids, ctx, rnd, 20000);
+        if (!attr) continue;
+        const c = ameliorer(attr, ids, ctx, rnd);
+        resultats.push({ attr, c });
+      }
     }
 
     if (!resultats.length) {
@@ -186,10 +248,23 @@
       if (Number(parId.get(a).generation) === Number(parId.get(b).generation)) memeGeneration++;
       if (m.get(b) === a) reciproques++;
     }
-    return { total: m.size, memeBranche, memeGeneration, reciproques: reciproques / 2 };
+    return { total: m.size, memeBranche, memeGeneration, reciproques: reciproques / 2, boucles: nombreDeBoucles(m) };
   }
 
-  const api = { tirer, statistiques, REGLES_PAR_DEFAUT };
+  /** Nombre de boucles distinctes dans un tirage (1 = une seule grande chaîne). */
+  function nombreDeBoucles(attributions) {
+    const m = attributions instanceof Map ? attributions : new Map(Object.entries(attributions));
+    const vus = new Set();
+    let n = 0;
+    for (const depart of m.keys()) {
+      if (vus.has(depart)) continue;
+      n++;
+      for (let x = depart; !vus.has(x); x = m.get(x)) vus.add(x);
+    }
+    return n;
+  }
+
+  const api = { tirer, statistiques, nombreDeBoucles, REGLES_PAR_DEFAUT };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.Tirage = api;
 })(typeof window !== "undefined" ? window : globalThis);

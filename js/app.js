@@ -1,4 +1,5 @@
-/* Secret Santa en famille — application (page unique, sans serveur). */
+/* Secret Santa en famille — application (page unique, hébergée sur GitHub Pages).
+ * Les souhaits sont enregistrés dans une base Firebase Realtime Database (API REST). */
 (function () {
   "use strict";
 
@@ -15,8 +16,7 @@
     3: "Petits-enfants",
     4: "Arrière-petits-enfants"
   };
-  const CLE_ORGA = "secretSanta.orga.v3";
-  const CLE_MOI = "secretSanta.monSouhait.v1";
+  const CLE_ORGA = "secretSanta.orga.v4";
 
   const app = document.getElementById("app");
   let publie = null; // contenu de data/famille.json
@@ -42,34 +42,11 @@
     return isNaN(d) ? iso : d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   }
 
-  function telInternational(tel) {
-    let t = String(tel || "").replace(/[^\d+]/g, "");
-    if (t.startsWith("+")) return t.slice(1);
-    if (t.startsWith("00")) return t.slice(2);
-    if (t.startsWith("0")) return "33" + t.slice(1); // numéro français
-    return t;
-  }
-
   function texteSouhait(s) {
     if (!s || !SOUHAITS[s.type]) return null;
     const def = SOUHAITS[s.type];
     const label = s.type === "autre" ? "Autre" : def.label;
     return { emoji: def.emoji, label, precision: s.precision || "" };
-  }
-
-  async function copier(texte, bouton) {
-    try {
-      await navigator.clipboard.writeText(texte);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = texte; document.body.appendChild(ta); ta.select();
-      document.execCommand("copy"); ta.remove();
-    }
-    if (bouton) {
-      const avant = bouton.textContent;
-      bouton.textContent = "✔ Copié !";
-      setTimeout(() => (bouton.textContent = avant), 1500);
-    }
   }
 
   // ---------- données publiées ----------
@@ -80,6 +57,33 @@
       publie = rep.ok ? await rep.json() : {};
     } catch { publie = {}; }
     return publie;
+  }
+
+  // ---------- base des souhaits (Firebase Realtime Database, via son API REST) ----------
+  function urlBase(d) {
+    const u = String((d && d.baseSouhaits) || "").trim().replace(/\/+$/, "");
+    return /^https:\/\/[^/]+$/.test(u) ? u : "";
+  }
+  /** Souhaits de tout le monde : la base si elle est configurée, sinon le fichier publié. */
+  async function lireSouhaits(d) {
+    const base = urlBase(d);
+    if (!base) return { ...(d.souhaits || {}) };
+    try {
+      const rep = await fetch(base + "/souhaits.json", { cache: "no-store" });
+      if (!rep.ok) throw new Error(rep.status);
+      return (await rep.json()) || {};
+    } catch {
+      return { ...(d.souhaits || {}) };
+    }
+  }
+  /** Enregistre (ou efface si s est vide) le souhait d'une personne. */
+  async function ecrireSouhait(base, id, s) {
+    if (!base) throw new Error("Base des souhaits non configurée");
+    const url = `${base}/souhaits/${encodeURIComponent(id)}.json`;
+    const rep = s && s.type
+      ? await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: s.type, precision: s.precision || "" }) })
+      : await fetch(url, { method: "DELETE" });
+    if (!rep.ok) throw new Error("HTTP " + rep.status);
   }
 
   // ---------- identité choisie (pour la durée de la visite) ----------
@@ -147,6 +151,7 @@
           <li>Chacun offre <b>un seul cadeau</b>, tiré au sort, de préférence à quelqu'un d'une autre famille et d'une autre génération.</li>
           <li>Choisis ton prénom pour découvrir à qui tu fais un cadeau… et ce qui lui ferait plaisir.</li>
           <li>Indique toi aussi <b>ton souhait</b> : douceur, déco, fait main, surprise…</li>
+          <li>Le jour J, les cadeaux s'ouvrent <b>à la chaîne</b> : celui qui vient d'ouvrir son cadeau offre le sien, et ainsi de suite jusqu'à boucler le tour de la famille !</li>
         </ol>
         <p class="note">🤫 On compte sur toi : ne regarde que ton prénom !</p>
       </section>
@@ -200,7 +205,8 @@
 
     const attributions = (d.tirage && d.tirage.attributions) || {};
     const receveur = parId[attributions[id]] || null;
-    const souhait = receveur ? texteSouhait(d.souhaits && d.souhaits[receveur.id]) : null;
+    const souhaits = await lireSouhaits(d);
+    const souhait = receveur ? texteSouhait(souhaits[receveur.id]) : null;
     const cleVu = "secretSanta.vu." + (d.tirage && d.tirage.id) + "." + id;
     const dejaVu = lire(cleVu);
 
@@ -230,6 +236,7 @@
                 : `<p class="petit">${esc(receveur.nom)} n'a pas encore donné de souhait. Reviens voir plus tard !</p>`}
             </div>
             ${d.budget ? `<p class="petit">Budget conseillé : <b>${esc(d.budget)}</b></p>` : ""}
+            <p class="note">🎄 Le jour J, les cadeaux s'ouvrent <b>à la chaîne</b> : dès que tu as ouvert le tien, c'est à toi d'offrir ton cadeau à ${esc(receveur.nom)} !</p>
             <p class="note">🤫 Chut, c'est un secret !</p>
           </div>
         </div>` : `
@@ -247,22 +254,21 @@
       confettis();
     };
     document.getElementById("changer").onclick = () => { oublierIdentite(); location.hash = "#/"; };
-    blocMonSouhait({ g: moi.id, gn: moi.nom }, d);
+    blocMonSouhait(moi, d, souhaits);
   }
 
-  function blocMonSouhait(t, d) {
+  function blocMonSouhait(moi, d, souhaits) {
     const el = document.getElementById("mon-souhait");
-    const tous = lire(CLE_MOI) || {};
-    const publieMoi = d.souhaits && d.souhaits[t.g];
-    let brouillon = tous[t.g] || publieMoi || { type: "", precision: "" };
-    const memeQuePublie = (s) => publieMoi && s && publieMoi.type === s.type && (publieMoi.precision || "") === (s.precision || "");
+    const actif = !!urlBase(d);
+    let actuel = souhaits[moi.id] || null;
+    let brouillon = actuel ? { ...actuel } : { type: "", precision: "" };
 
     function dessiner(etat) {
-      const enregistre = tous[t.g];
-      const ok = memeQuePublie(enregistre || publieMoi);
+      const ts = texteSouhait(actuel);
       el.innerHTML = `
         <h2>Et toi, qu'est-ce qui te ferait plaisir ?</h2>
         <p class="petit">Ton Secret Santa verra ton choix (mais toi, tu ne sauras pas qui c'est 😉).</p>
+        ${!actif ? `<p class="alerte">L'enregistrement des souhaits n'est pas encore ouvert. Reviens un peu plus tard !</p>` : ""}
         <div class="choix" role="radiogroup" aria-label="Mon souhait">
           ${Object.entries(SOUHAITS).map(([k, s]) => `
             <button type="button" role="radio" aria-checked="${brouillon.type === k}" class="choix-btn ${brouillon.type === k ? "actif" : ""}" data-type="${k}">
@@ -274,8 +280,13 @@
           <input type="text" id="precision" maxlength="140" value="${esc(brouillon.precision)}"
             placeholder="${brouillon.type === "autre" ? "Ex. : un livre, des chaussettes rigolotes…" : "Ex. : plutôt chocolat noir, couleurs dorées…"}">
         </label>
-        <button class="bouton large" id="valider" ${brouillon.type ? "" : "disabled"}>Enregistrer mon souhait</button>
-        <div id="envoi">${etat === "envoi" ? envoiHtml(enregistre) : ok ? `<p class="succes">✅ Ton souhait est bien pris en compte : ${esc(SOUHAITS[publieMoi.type].emoji)} ${esc(texteSouhait(publieMoi).label)}${publieMoi.precision ? " — « " + esc(publieMoi.precision) + " »" : ""}</p>` : enregistre ? envoiHtml(enregistre, true) : ""}</div>`;
+        <button class="bouton large" id="valider" ${brouillon.type && actif && etat !== "envoi" ? "" : "disabled"}>
+          ${etat === "envoi" ? "Enregistrement…" : actuel ? "Modifier mon souhait" : "Enregistrer mon souhait"}
+        </button>
+        <div id="etat-souhait" aria-live="polite">
+          ${etat === "erreur" ? `<p class="alerte">Oups, l'enregistrement n'a pas fonctionné. Vérifie ta connexion internet et réessaie.</p>` : ""}
+          ${etat !== "erreur" && ts ? `<p class="succes">✅ ${etat === "ok" ? "C'est enregistré ! " : ""}Ton souhait : ${ts.emoji} ${esc(ts.label)}${ts.precision ? " — « " + esc(ts.precision) + " »" : ""}</p>` : ""}
+        </div>`;
 
       el.querySelectorAll(".choix-btn").forEach((b) => (b.onclick = () => {
         brouillon = { type: b.dataset.type, precision: document.getElementById("precision").value };
@@ -283,44 +294,23 @@
         if (brouillon.type === "autre") document.getElementById("precision").focus();
       }));
       document.getElementById("precision").oninput = (e) => (brouillon.precision = e.target.value);
-      document.getElementById("valider").onclick = () => {
+      document.getElementById("valider").onclick = async () => {
         brouillon.precision = document.getElementById("precision").value.trim();
         if (brouillon.type === "autre" && !brouillon.precision) {
           document.getElementById("precision").focus();
           document.getElementById("precision").classList.add("erreur");
           return;
         }
-        tous[t.g] = { type: brouillon.type, precision: brouillon.precision };
-        ecrire(CLE_MOI, tous);
-        dessiner(memeQuePublie(tous[t.g]) ? null : "envoi");
+        const nouveau = { type: brouillon.type, precision: brouillon.precision };
+        dessiner("envoi");
+        try {
+          await ecrireSouhait(urlBase(d), moi.id, nouveau);
+          actuel = nouveau;
+          dessiner("ok");
+        } catch {
+          dessiner("erreur");
+        }
       };
-      brancherEnvoi(enregistre);
-    }
-
-    function message(s) {
-      const ts = texteSouhait(s);
-      return `🎅 Secret Santa — souhait de ${t.gn} : ${ts.emoji} ${ts.label}${s.precision ? " (" + s.precision + ")" : ""}\n` +
-        `#SOUHAIT g=${t.g} type=${s.type}${s.precision ? " | " + s.precision.replace(/\s+/g, " ") : ""}`;
-    }
-
-    function envoiHtml(s, enAttente) {
-      if (!s) return "";
-      const tel = telInternational(d.organisateur?.telephone || t.tel);
-      const nom = d.organisateur?.nom || t.on || "l'organisateur";
-      const msg = encodeURIComponent(message(s));
-      return `
-        <div class="encadre">
-          <p>${enAttente ? "⏳ Ton souhait n'a pas encore été publié." : "👍 C'est noté !"} Dernière étape : <b>envoie-le à ${esc(nom)}</b>, qui l'ajoutera pour ton Secret Santa.</p>
-          <div class="boutons">
-            <a class="bouton whatsapp" target="_blank" rel="noopener" href="https://wa.me/${tel}?text=${msg}">WhatsApp</a>
-            <a class="bouton secondaire" href="sms:${tel ? "+" + tel : ""}?&body=${msg}">SMS</a>
-            <button class="bouton secondaire" id="copier-souhait">Copier le message</button>
-          </div>
-        </div>`;
-    }
-    function brancherEnvoi(s) {
-      const b = document.getElementById("copier-souhait");
-      if (b && s) b.onclick = () => copier(message(s), b);
     }
 
     dessiner();
@@ -358,7 +348,7 @@
       titre: copie.titre || "Noël en famille",
       date: copie.date || "",
       budget: copie.budget || "",
-      organisateur: copie.organisateur || { nom: "", telephone: "" },
+      baseSouhaits: copie.baseSouhaits || "",
       regles: Object.assign({}, Tirage.REGLES_PAR_DEFAUT, copie.regles || {}),
       participants: copie.participants || [],
       souhaits: copie.souhaits || {},
@@ -368,8 +358,10 @@
   function versPublie(o) {
     const out = {
       titre: o.titre, date: o.date, budget: o.budget,
-      organisateur: o.organisateur, regles: o.regles,
-      participants: o.participants, souhaits: o.souhaits
+      baseSouhaits: o.baseSouhaits || "", regles: o.regles,
+      participants: o.participants,
+      // Avec une base, les souhaits y vivent ; sinon ils sont publiés ici.
+      souhaits: urlBase(o) ? {} : o.souhaits
     };
     // Le tirage est publié : chacun le retrouve en choisissant son prénom.
     if (o.tirage) out.tirage = o.tirage;
@@ -384,11 +376,28 @@
     let enLigne = await chargerPublie();
     const sauver = () => ecrire(CLE_ORGA, o);
     const branches = () => [...new Set(o.participants.map((p) => p.branche).filter(Boolean))];
+    o.souhaits = o.souhaits || {};
+    let souhaitsVue = { ...o.souhaits };
+    let etatBase = ""; // "" (pas de base) | "ok" | "erreur"
+
+    async function chargerSouhaitsOrga() {
+      const base = urlBase(o);
+      if (!base) { etatBase = ""; souhaitsVue = { ...o.souhaits }; return; }
+      try {
+        const rep = await fetch(base + "/souhaits.json", { cache: "no-store" });
+        if (!rep.ok) throw new Error(rep.status);
+        souhaitsVue = (await rep.json()) || {};
+        etatBase = "ok";
+      } catch {
+        etatBase = "erreur";
+      }
+    }
+    await chargerSouhaitsOrga();
 
     function rendu() {
       const parId = Object.fromEntries(o.participants.map((p) => [p.id, p]));
       const perime = o.tirage && o.tirage.empreinte !== empreinte(o.participants);
-      const nbSouhaits = o.participants.filter((p) => o.souhaits[p.id]).length;
+      const nbSouhaits = o.participants.filter((p) => souhaitsVue[p.id]).length;
       const idEnLigne = enLigne.tirage && enLigne.tirage.id;
       const tiragePublie = o.tirage && idEnLigne === o.tirage.id;
 
@@ -405,10 +414,12 @@
             <label class="champ"><span>Titre</span><input data-k="titre" value="${esc(o.titre)}"></label>
             <label class="champ"><span>Date</span><input type="date" data-k="date" value="${esc(o.date)}"></label>
             <label class="champ"><span>Budget conseillé</span><input data-k="budget" value="${esc(o.budget)}" placeholder="Ex. : 20 €"></label>
-            <label class="champ"><span>Organisateur (prénom)</span><input data-k="organisateur.nom" value="${esc(o.organisateur.nom)}"></label>
-            <label class="champ"><span>Téléphone de l'organisateur</span><input type="tel" data-k="organisateur.telephone" value="${esc(o.organisateur.telephone)}" placeholder="06 12 34 56 78"></label>
           </div>
-          <p class="note">Le téléphone sert au bouton « Envoyer mon souhait par WhatsApp/SMS ». Il sera visible dans le fichier publié : laissez vide si vous préférez.</p>
+          <label class="champ"><span>Adresse de la base des souhaits (Firebase)</span>
+            <input data-k="baseSouhaits" value="${esc(o.baseSouhaits || "")}" placeholder="https://xxxx-default-rtdb.europe-west1.firebasedatabase.app" inputmode="url"></label>
+          ${etatBase === "ok" ? `<p class="succes">✅ Base connectée : chacun peut enregistrer son souhait dans l'application.</p>`
+            : etatBase === "erreur" ? `<p class="alerte">❌ Impossible de joindre la base. Vérifiez l'adresse et les règles (voir le README).</p>`
+            : `<p class="note">Sans base, personne ne peut enregistrer son souhait dans l'application. La création prend 5 minutes : voir le README.</p>`}
         </section>
 
         <section class="carte">
@@ -445,6 +456,7 @@
 
         <section class="carte">
           <h2>3. Les règles du tirage</h2>
+          <label class="regle"><input type="checkbox" data-r="boucle" ${o.regles.boucle ? "checked" : ""}> Une seule grande boucle (les cadeaux s'ouvrent à la chaîne)</label>
           <label class="regle"><input type="checkbox" data-r="conjoint" ${o.regles.conjoint ? "checked" : ""}> Jamais à son conjoint</label>
           <label class="regle"><span>Familles (branches)</span>
             <select data-r="branche">
@@ -486,16 +498,15 @@
 
         <section class="carte">
           <h2>5. Les souhaits <span class="compteur">${nbSouhaits}/${o.participants.length}</span></h2>
-          <p class="petit">Chacun choisit son souhait sur sa page et vous l'envoie par message. Collez ici les messages reçus (même plusieurs d'un coup) :</p>
-          <textarea id="coller" rows="3" placeholder="#SOUHAIT g=… type=…"></textarea>
-          <button class="bouton secondaire" id="importer">Ajouter les souhaits collés</button>
-          <div id="retour-import"></div>
+          <p class="petit">Chacun enregistre son souhait dans son espace perso. Vous pouvez aussi en saisir ou en corriger un ici${urlBase(o) ? " (enregistré directement dans la base)" : ""}.</p>
+          ${urlBase(o) ? `<button class="bouton petit secondaire" id="actualiser">↻ Actualiser</button>` : ""}
+          <div id="retour-souhait"></div>
           <div class="tableau-wrap">
             <table class="tableau">
               <thead><tr><th>Prénom</th><th>Souhait</th><th>Précision</th></tr></thead>
               <tbody>
                 ${o.participants.map((p) => {
-                  const s = o.souhaits[p.id] || {};
+                  const s = souhaitsVue[p.id] || {};
                   return `<tr data-id="${esc(p.id)}">
                     <td>${esc(p.nom)}</td>
                     <td><select data-s="type" aria-label="Souhait de ${esc(p.nom)}"><option value="">— pas encore —</option>
@@ -536,7 +547,7 @@
     function statsHtml(s) {
       if (!s) return "";
       const pl = (n, m, pluriel) => `${n} ${n > 1 ? pluriel : m}`;
-      return `Qualité du mélange : ${pl(s.memeBranche, "cadeau", "cadeaux")} dans la même branche, ${pl(s.memeGeneration, "cadeau", "cadeaux")} dans la même génération, ${pl(s.reciproques, "échange réciproque", "échanges réciproques")}.`;
+      return `Qualité du mélange : ${pl(s.memeBranche, "cadeau", "cadeaux")} dans la même branche, ${pl(s.memeGeneration, "cadeau", "cadeaux")} dans la même génération, ${pl(s.reciproques, "échange réciproque", "échanges réciproques")}${s.boucles ? ", " + (s.boucles === 1 ? "une seule grande boucle" : s.boucles + " boucles") : ""}.`;
     }
 
 
@@ -544,8 +555,9 @@
       // événement
       app.querySelectorAll("[data-k]").forEach((inp) => (inp.onchange = () => {
         const [a, b] = inp.dataset.k.split(".");
-        if (b) o[a][b] = inp.value; else o[a] = inp.value;
+        if (b) o[a][b] = inp.value; else o[a] = inp.value.trim();
         sauver();
+        if (a === "baseSouhaits") chargerSouhaitsOrga().then(rendu);
       }));
       // participants
       app.querySelectorAll("tr[data-id] [data-f]").forEach((inp) => (inp.onchange = () => {
@@ -597,29 +609,27 @@
         faireTirage();
       };
       // souhaits
-      app.querySelectorAll("tr[data-id] [data-s]").forEach((inp) => (inp.onchange = () => {
+      app.querySelectorAll("tr[data-id] [data-s]").forEach((inp) => (inp.onchange = async () => {
         const id = inp.closest("tr").dataset.id;
-        const s = o.souhaits[id] || { type: "", precision: "" };
+        const s = { type: "", precision: "", ...(souhaitsVue[id] || {}) };
         s[inp.dataset.s] = inp.value.trim();
-        if (s.type) o.souhaits[id] = s; else delete o.souhaits[id];
-        sauver(); rendu();
-      }));
-      document.getElementById("importer").onclick = () => {
-        const texte = document.getElementById("coller").value;
-        const re = /#SOUHAIT\s+g=(\S+)\s+type=(\w+)(?:\s*\|\s*([^\n]*))?/g;
-        const ok = [], inconnus = [];
-        let m;
-        while ((m = re.exec(texte))) {
-          const p = o.participants.find((x) => x.id === m[1]);
-          if (!p || !SOUHAITS[m[2]]) { inconnus.push(m[1]); continue; }
-          o.souhaits[p.id] = { type: m[2], precision: (m[3] || "").trim() };
-          ok.push(p.nom);
+        const nouveau = s.type ? { type: s.type, precision: s.precision } : null;
+        const base = urlBase(o);
+        if (base) {
+          try { await ecrireSouhait(base, id, nouveau); }
+          catch {
+            document.getElementById("retour-souhait").innerHTML = `<p class="alerte">❌ Enregistrement impossible dans la base.</p>`;
+            return;
+          }
+        } else {
+          if (nouveau) o.souhaits[id] = nouveau; else delete o.souhaits[id];
+          sauver();
         }
-        sauver(); rendu();
-        document.getElementById("retour-import").innerHTML =
-          (ok.length ? `<p class="succes">✅ Souhait ajouté pour : ${esc(ok.join(", "))}. Pensez à publier (étape 6).</p>` : `<p class="alerte">Aucun souhait reconnu. Collez le message complet, avec la ligne « #SOUHAIT … ».</p>`) +
-          (inconnus.length ? `<p class="alerte">Personnes inconnues : ${esc(inconnus.join(", "))}</p>` : "");
-      };
+        if (nouveau) souhaitsVue[id] = nouveau; else delete souhaitsVue[id];
+        rendu();
+      }));
+      const bActu = document.getElementById("actualiser");
+      if (bActu) bActu.onclick = async () => { await chargerSouhaitsOrga(); rendu(); };
       // export / sauvegarde
       document.getElementById("exporter").onclick = () => telecharger("famille.json", versPublie(o));
       document.getElementById("sauvegarde").onclick = () => telecharger("secret-santa-sauvegarde.json", o);
