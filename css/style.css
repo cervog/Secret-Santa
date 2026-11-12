@@ -132,12 +132,11 @@ textarea { resize: vertical; }
 .choix-btn {
   font: inherit; font-weight: 700; color: var(--texte);
   background: var(--champ); border: 2px solid var(--bord); border-radius: 16px;
-  padding: 14px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 16px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px;
   transition: border-color .15s, transform .1s;
 }
 .choix-btn:hover { border-color: var(--or); }
 .choix-btn.actif { border-color: var(--rouge); background: color-mix(in srgb, var(--rouge) 10%, var(--champ)); }
-.choix-emoji { font-size: 1.8rem; }
 
 /* Le cadeau à ouvrir */
 .cadeau { margin: 10px 0 4px; }

@@ -2,7 +2,7 @@
   "titre": "Noël 2026 chez Marie-France",
   "date": "",
   "budget": "",
-  "baseSouhaits": "",
+  "baseSouhaits": "https://secret-santa-74c5b-default-rtdb.europe-west1.firebasedatabase.app",
   "regles": {
     "boucle": true,
     "conjoint": true,
