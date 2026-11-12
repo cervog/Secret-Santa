@@ -417,6 +417,7 @@
             <input data-k="baseSouhaits" value="${esc(o.baseSouhaits || "")}" placeholder="https://xxxx-default-rtdb.europe-west1.firebasedatabase.app" inputmode="url"></label>
           ${etatBase === "ok" ? `<p class="succes">✅ Base connectée : chacun peut enregistrer son souhait dans l'application.</p>`
             : etatBase === "erreur" ? `<p class="alerte">❌ Impossible de joindre la base. Vérifiez l'adresse et les règles (voir le README).</p>`
+            : (o.baseSouhaits || "").trim() ? `<p class="alerte">❌ Cette adresse n'est pas celle de la base. Dans Firebase, onglet Données, copiez l'adresse affichée en haut (elle se termine par « firebasedatabase.app » ou « firebaseio.com »), pas celle de la barre d'adresse.</p>`
             : `<p class="note">Sans base, personne ne peut enregistrer son souhait dans l'application. La création prend 5 minutes : voir le README.</p>`}
         </section>
 
