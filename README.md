@@ -5,14 +5,14 @@ Petite application web (sans inscription) pour organiser le Secret Santa de Noë
 ## Fonctionnalités
 
 - **Tirage au sort qui tient compte de la famille** : la grand-mère, ses enfants et tout ce qui s'y rattache (conjoints, petits-enfants, conjoints des petits-enfants) sont répartis en *branches* et en *générations*. Le tirage :
-  - forme **une seule grande boucle** : A offre à B, B à C… jusqu'au dernier qui offre à A. Le jour J, les cadeaux s'ouvrent à la chaîne ;
+  - forme **une seule grande boucle** : A offre à B, B à C… jusqu'au dernier qui offre à A ;
   - n'attribue jamais quelqu'un à lui-même, ni (par défaut) à son conjoint ;
   - fait offrir à une **autre branche** autant que possible (ou obligatoirement, au choix) ;
   - **mélange les générations** autant que possible ;
   - évite les échanges réciproques (A offre à B et B offre à A).
   Le tirage reste aléatoire : on tire plusieurs fois au hasard, on améliore chaque tirage, et on garde au hasard l'un des meilleurs.
 - **Chacun voit à qui il offre** : en arrivant, on choisit son prénom dans un menu déroulant, un petit écran de chargement s'affiche, puis « Es-tu sûr(e) d'être … ? ». Une fois confirmé, on arrive dans son espace perso, on touche le paquet cadeau 🎁 et on découvre le prénom… et le souhait de la personne.
-- **Chacun enregistre son souhait directement dans l'application**, depuis son espace perso (et peut le modifier) : 🍫 douceur à manger, 🕯️ petite déco, 🧶 fait main, 🎉 surprise surprise, ✏️ autre (à préciser).
+- **Chacun enregistre son souhait directement dans l'application**, depuis son espace perso (et peut le modifier) : douceur à manger, petite déco, fait main, surprise surprise, autre (à préciser).
 - L'espace organisateur n'affiche pas qui offre à qui.
 - Fonctionne sur téléphone, mode sombre automatique.
 

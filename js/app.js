@@ -4,11 +4,11 @@
   "use strict";
 
   const SOUHAITS = {
-    douceur:  { emoji: "🍫", label: "Douceur à manger" },
-    deco:     { emoji: "🕯️", label: "Petite déco" },
-    faitmain: { emoji: "🧶", label: "Fait main" },
-    surprise: { emoji: "🎉", label: "Surprise surprise !" },
-    autre:    { emoji: "✏️", label: "Autre (à préciser)" }
+    douceur:  { label: "Douceur à manger" },
+    deco:     { label: "Petite déco" },
+    faitmain: { label: "Fait main" },
+    surprise: { label: "Surprise surprise !" },
+    autre:    { label: "Autre (à préciser)" }
   };
   const GENERATIONS = {
     1: "Grands-parents",
@@ -46,7 +46,7 @@
     if (!s || !SOUHAITS[s.type]) return null;
     const def = SOUHAITS[s.type];
     const label = s.type === "autre" ? "Autre" : def.label;
-    return { emoji: def.emoji, label, precision: s.precision || "" };
+    return { label, precision: s.precision || "" };
   }
 
   // ---------- données publiées ----------
@@ -151,7 +151,6 @@
           <li>Chacun offre <b>un seul cadeau</b>, tiré au sort, de préférence à quelqu'un d'une autre famille et d'une autre génération.</li>
           <li>Choisis ton prénom pour découvrir à qui tu fais un cadeau… et ce qui lui ferait plaisir.</li>
           <li>Indique toi aussi <b>ton souhait</b> : douceur, déco, fait main, surprise…</li>
-          <li>Le jour J, les cadeaux s'ouvrent <b>à la chaîne</b> : celui qui vient d'ouvrir son cadeau offre le sien, et ainsi de suite jusqu'à boucler le tour de la famille !</li>
         </ol>
         <p class="note">🤫 On compte sur toi : ne regarde que ton prénom !</p>
       </section>
@@ -231,12 +230,11 @@
             <div class="souhait-receveur">
               ${souhait
                 ? `<p class="petit">Son souhait :</p>
-                   <p class="pastille">${souhait.emoji} ${esc(souhait.label)}</p>
+                   <p class="pastille">${esc(souhait.label)}</p>
                    ${souhait.precision ? `<p class="precision">« ${esc(souhait.precision)} »</p>` : ""}`
                 : `<p class="petit">${esc(receveur.nom)} n'a pas encore donné de souhait. Reviens voir plus tard !</p>`}
             </div>
             ${d.budget ? `<p class="petit">Budget conseillé : <b>${esc(d.budget)}</b></p>` : ""}
-            <p class="note">🎄 Le jour J, les cadeaux s'ouvrent <b>à la chaîne</b> : dès que tu as ouvert le tien, c'est à toi d'offrir ton cadeau à ${esc(receveur.nom)} !</p>
             <p class="note">🤫 Chut, c'est un secret !</p>
           </div>
         </div>` : `
@@ -272,7 +270,7 @@
         <div class="choix" role="radiogroup" aria-label="Mon souhait">
           ${Object.entries(SOUHAITS).map(([k, s]) => `
             <button type="button" role="radio" aria-checked="${brouillon.type === k}" class="choix-btn ${brouillon.type === k ? "actif" : ""}" data-type="${k}">
-              <span class="choix-emoji">${s.emoji}</span><span>${esc(s.label)}</span>
+              <span>${esc(s.label)}</span>
             </button>`).join("")}
         </div>
         <label class="champ ${brouillon.type ? "" : "cache"}" id="champ-precision">
@@ -285,7 +283,7 @@
         </button>
         <div id="etat-souhait" aria-live="polite">
           ${etat === "erreur" ? `<p class="alerte">Oups, l'enregistrement n'a pas fonctionné. Vérifie ta connexion internet et réessaie.</p>` : ""}
-          ${etat !== "erreur" && ts ? `<p class="succes">✅ ${etat === "ok" ? "C'est enregistré ! " : ""}Ton souhait : ${ts.emoji} ${esc(ts.label)}${ts.precision ? " — « " + esc(ts.precision) + " »" : ""}</p>` : ""}
+          ${etat !== "erreur" && ts ? `<p class="succes">✅ ${etat === "ok" ? "C'est enregistré ! " : ""}Ton souhait : ${esc(ts.label)}${ts.precision ? " — « " + esc(ts.precision) + " »" : ""}</p>` : ""}
         </div>`;
 
       el.querySelectorAll(".choix-btn").forEach((b) => (b.onclick = () => {
@@ -419,6 +417,7 @@
             <input data-k="baseSouhaits" value="${esc(o.baseSouhaits || "")}" placeholder="https://xxxx-default-rtdb.europe-west1.firebasedatabase.app" inputmode="url"></label>
           ${etatBase === "ok" ? `<p class="succes">✅ Base connectée : chacun peut enregistrer son souhait dans l'application.</p>`
             : etatBase === "erreur" ? `<p class="alerte">❌ Impossible de joindre la base. Vérifiez l'adresse et les règles (voir le README).</p>`
+            : (o.baseSouhaits || "").trim() ? `<p class="alerte">❌ Cette adresse n'est pas celle de la base. Dans Firebase, onglet Données, copiez l'adresse affichée en haut (elle se termine par « firebasedatabase.app » ou « firebaseio.com »), pas celle de la barre d'adresse.</p>`
             : `<p class="note">Sans base, personne ne peut enregistrer son souhait dans l'application. La création prend 5 minutes : voir le README.</p>`}
         </section>
 
@@ -456,7 +455,7 @@
 
         <section class="carte">
           <h2>3. Les règles du tirage</h2>
-          <label class="regle"><input type="checkbox" data-r="boucle" ${o.regles.boucle ? "checked" : ""}> Une seule grande boucle (les cadeaux s'ouvrent à la chaîne)</label>
+          <label class="regle"><input type="checkbox" data-r="boucle" ${o.regles.boucle ? "checked" : ""}> Une seule grande boucle (A offre à B, B à C… et le dernier à A)</label>
           <label class="regle"><input type="checkbox" data-r="conjoint" ${o.regles.conjoint ? "checked" : ""}> Jamais à son conjoint</label>
           <label class="regle"><span>Familles (branches)</span>
             <select data-r="branche">
@@ -510,7 +509,7 @@
                   return `<tr data-id="${esc(p.id)}">
                     <td>${esc(p.nom)}</td>
                     <td><select data-s="type" aria-label="Souhait de ${esc(p.nom)}"><option value="">— pas encore —</option>
-                      ${Object.entries(SOUHAITS).map(([k, d]) => `<option value="${k}" ${s.type === k ? "selected" : ""}>${d.emoji} ${esc(d.label)}</option>`).join("")}
+                      ${Object.entries(SOUHAITS).map(([k, d]) => `<option value="${k}" ${s.type === k ? "selected" : ""}>${esc(d.label)}</option>`).join("")}
                     </select></td>
                     <td><input data-s="precision" value="${esc(s.precision)}" aria-label="Précision pour ${esc(p.nom)}"></td>
                   </tr>`;

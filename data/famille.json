@@ -1,14 +1,14 @@
 {
-  "titre": "Noël 2026 chez Marie-France",
-  "date": "",
-  "budget": "",
-  "baseSouhaits": "",
+  "titre": "VM de Noël",
+  "date": "2026-12-19",
+  "budget": "Moins de 15€",
+  "baseSouhaits": "https://secret-santa-74c5b-default-rtdb.europe-west1.firebasedatabase.app",
   "regles": {
     "boucle": true,
     "conjoint": true,
     "branche": "preference",
     "generation": "preference",
-    "reciproque": "preference"
+    "reciproque": "stricte"
   },
   "participants": [
     {
@@ -110,5 +110,33 @@
       "conjoint": "baptistin"
     }
   ],
-  "souhaits": {}
+  "souhaits": {},
+  "tirage": {
+    "id": "mwdzw6xz",
+    "fait": "2026-11-12T20:23:13.703Z",
+    "attributions": {
+      "baptistin": "philippe",
+      "philippe": "hippolyte",
+      "hippolyte": "caroline",
+      "caroline": "therese",
+      "therese": "sophie",
+      "sophie": "anaelle",
+      "anaelle": "remi",
+      "remi": "joelle",
+      "joelle": "cyril",
+      "cyril": "marie-france",
+      "marie-france": "ludovic",
+      "ludovic": "christophe",
+      "christophe": "lucille",
+      "lucille": "baptistin"
+    },
+    "stats": {
+      "total": 14,
+      "memeBranche": 0,
+      "memeGeneration": 4,
+      "reciproques": 0,
+      "boucles": 1
+    },
+    "empreinte": "marie-france:Marie-France:Marie-France:1:|sophie:Sophie:Sophie:2:philippe|philippe:Philippe:Sophie:2:sophie|remi:Rémi:Sophie:3:lucille|lucille:Lucille:Sophie:3:remi|ludovic:Ludovic:Sophie:3:|cyril:Cyril:Sophie:3:caroline|caroline:Caroline:Sophie:3:cyril|joelle:Joëlle:Joëlle:2:christophe|christophe:Christophe:Joëlle:2:joelle|hippolyte:Hippolyte:Joëlle:3:therese|therese:Thérèse:Joëlle:3:hippolyte|baptistin:Baptistin:Joëlle:3:anaelle|anaelle:Anaëlle:Joëlle:3:baptistin"
+  }
 }
