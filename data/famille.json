@@ -2,7 +2,7 @@
   "titre": "VM de Noël",
   "date": "2026-12-19",
   "budget": "Moins de 15€",
-  "baseSouhaits": "https://secret-santa-74c5b-default-rtdb.europe-west1.firebasedatabase.app",
+  "baseSouhaits": "https://secret-santa-74c5b-default-rtdb.europe-west1.firebasedatabase.app/",
   "regles": {
     "boucle": true,
     "conjoint": true,
